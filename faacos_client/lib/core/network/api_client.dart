@@ -1,17 +1,24 @@
 import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kReleaseMode;
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
   final Dio dio = Dio();
 
-  // Base URL points to the Laragon local web server API.
+  // Production base URL (change this to your public API address when deploying)
+  static const String _productionUrl = 'https://api.hpp-faacos.com/api';
+
+  // Base URL points to the Laragon local web server API or production API.
   static String get baseUrl {
-    if (!kIsWeb && Platform.isAndroid) {
-      return 'http://10.0.2.2:8000/api';
+    if (kReleaseMode) {
+      return _productionUrl;
     }
-    return 'http://127.0.0.1:8000/api';
+
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'http://10.0.2.2/hpp-faacos/public/api';
+    }
+    return 'http://127.0.0.1/hpp-faacos/public/api';
   }
 
   ApiClient() {
