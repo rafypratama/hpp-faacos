@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ProductionController;
 use App\Http\Controllers\Api\InventoryController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\SyncController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -58,4 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
             'data' => \App\Models\AuditLog::with('user:id,name,role')->orderBy('created_at', 'desc')->get()
         ]);
     });
+
+    // Offline-First Auto-Sync Batch Endpoint
+    Route::post('/sync/batch', [SyncController::class, 'batch']);
 });
