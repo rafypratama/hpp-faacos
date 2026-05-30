@@ -10,12 +10,17 @@ import 'providers/realtime_notification_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'services/connectivity_service.dart';
+import 'screens/widgets/connection_banner_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Initialize Indonesian locale formatting data for beautiful and premium dates
   await initializeDateFormatting('id_ID', null);
+
+  // Initialize connectivity monitoring service
+  ConnectivityService().initialize();
 
   runApp(
     MultiProvider(
@@ -73,6 +78,14 @@ class MyApp extends StatelessWidget {
         ),
       ),
       home: const AppStartGate(),
+      builder: (context, child) {
+        return Column(
+          children: [
+            const ConnectionBannerWidget(),
+            Expanded(child: child ?? const SizedBox.shrink()),
+          ],
+        );
+      },
     );
   }
 }

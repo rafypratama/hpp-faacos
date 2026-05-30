@@ -3,6 +3,9 @@ import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../models/production_order_model.dart';
 import '../models/material_request_model.dart';
+import '../services/connectivity_service.dart';
+import '../services/offline_queue_service.dart';
+import '../services/sync_service.dart';
 
 class ProductionProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -114,6 +117,20 @@ class ProductionProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Gagal menjadwalkan produksi.'};
 
     } on DioException catch (e) {
+      // Offline fallback: queue the action locally
+      if (!ConnectivityService().currentStatus || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        await OfflineQueueService().addToQueue('schedule_production', {
+          'formula_id': formulaId,
+          'target_quantity': targetQuantity,
+          'batch_count': batchCount,
+          'scheduled_start_date': scheduledStartDate,
+          'scheduled_end_date': scheduledEndDate,
+        });
+        SyncService().updatePendingCount();
+        _isLoading = false;
+        notifyListeners();
+        return {'success': true, 'offline': true, 'message': 'Disimpan lokal, akan disinkronkan saat online.'};
+      }
       _isLoading = false;
       notifyListeners();
       return {
@@ -170,6 +187,18 @@ class ProductionProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Gagal memproses verifikasi.'};
 
     } on DioException catch (e) {
+      // Offline fallback: queue the verification action locally
+      if (!ConnectivityService().currentStatus || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        await OfflineQueueService().addToQueue('verify_material_request', {
+          'material_request_id': id,
+          'status': status,
+          'rejection_reason': rejectionReason,
+        });
+        SyncService().updatePendingCount();
+        _isLoading = false;
+        notifyListeners();
+        return {'success': true, 'offline': true, 'message': 'Disimpan lokal, verifikasi akan disinkronkan saat online.'};
+      }
       _isLoading = false;
       notifyListeners();
       return {

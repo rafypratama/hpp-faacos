@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../models/ingredient_model.dart';
+import '../services/connectivity_service.dart';
+import '../services/offline_queue_service.dart';
+import '../services/sync_service.dart';
 
 class InventoryLogModel {
   final int id;
@@ -145,6 +148,20 @@ class InventoryProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Gagal memproses penyesuaian stok.'};
 
     } on DioException catch (e) {
+      // Offline fallback: queue the stock adjustment locally
+      if (!ConnectivityService().currentStatus || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        await OfflineQueueService().addToQueue('adjust_stock', {
+          'ingredient_id': ingredientId,
+          'type': type,
+          'quantity': quantity,
+          'unit': unit,
+          'notes': notes,
+        });
+        SyncService().updatePendingCount();
+        _isLoading = false;
+        notifyListeners();
+        return {'success': true, 'offline': true, 'message': 'Disimpan lokal, akan disinkronkan saat online.'};
+      }
       _isLoading = false;
       notifyListeners();
       return {
@@ -202,6 +219,23 @@ class InventoryProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Gagal mendaftarkan bahan baku.'};
 
     } on DioException catch (e) {
+      // Offline fallback: queue adding ingredient locally
+      if (!ConnectivityService().currentStatus || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        await OfflineQueueService().addToQueue('add_ingredient', {
+          'code': code,
+          'name': name,
+          'type': type,
+          'unit': unit,
+          'price_per_unit': pricePerUnit,
+          'current_stock': currentStock,
+          'minimum_stock': minimumStock ?? 0.0,
+          'expired_at': expiredAt,
+        });
+        SyncService().updatePendingCount();
+        _isLoading = false;
+        notifyListeners();
+        return {'success': true, 'offline': true, 'message': 'Disimpan lokal, akan disinkronkan saat online.'};
+      }
       _isLoading = false;
       notifyListeners();
       return {

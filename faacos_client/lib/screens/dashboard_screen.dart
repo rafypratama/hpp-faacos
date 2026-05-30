@@ -4,6 +4,7 @@ import '../core/theme/colors.dart';
 import '../core/network/api_client.dart';
 import '../providers/auth_provider.dart';
 import '../providers/realtime_notification_provider.dart';
+import '../services/sync_service.dart';
 import 'login_screen.dart';
 
 // Import R&D screen placeholders
@@ -40,6 +41,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Provider.of<RealtimeNotificationProvider>(context, listen: false)
             .initialize(context, user.email);
       }
+
+      // Initialize offline auto-sync service
+      SyncService().initialize(context);
     });
   }
 
@@ -859,6 +863,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         actions: [
+          // Pending sync badge
+          ValueListenableBuilder<int>(
+            valueListenable: SyncService().pendingCount,
+            builder: (context, count, _) {
+              if (count == 0) return const SizedBox.shrink();
+              return Center(
+                child: Container(
+                  margin: const EdgeInsets.only(right: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.warning.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.cloud_upload_outlined, color: AppColors.warning, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$count',
+                        style: const TextStyle(color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.primaryLight),
             tooltip: 'Refresh Statistik',

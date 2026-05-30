@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../core/network/api_client.dart';
 import '../models/formula_model.dart';
+import '../services/connectivity_service.dart';
+import '../services/offline_queue_service.dart';
+import '../services/sync_service.dart';
 
 class FormulaProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -90,6 +93,20 @@ class FormulaProvider extends ChangeNotifier {
       return {'success': false, 'message': 'Gagal menyimpan formula.'};
 
     } on DioException catch (e) {
+      // Offline fallback: queue the action locally
+      if (!ConnectivityService().currentStatus || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        await OfflineQueueService().addToQueue('create_formula', {
+          'name': name,
+          'batch_size': batchSize,
+          'ingredients': ingredients,
+          'costs': costs,
+          'profit_margin_percent': profitMarginPercent,
+        });
+        SyncService().updatePendingCount();
+        _isLoading = false;
+        notifyListeners();
+        return {'success': true, 'offline': true, 'message': 'Disimpan lokal, akan disinkronkan saat online.'};
+      }
       _isLoading = false;
       notifyListeners();
       return {
@@ -174,6 +191,19 @@ class FormulaProvider extends ChangeNotifier {
           'status': 'insufficient_stock',
           'message': e.response?.data['message'],
           'shortages': e.response?.data['shortages']
+        };
+      }
+
+      // Offline fallback: queue the approval action locally
+      if (!ConnectivityService().currentStatus || e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.connectionError) {
+        await OfflineQueueService().addToQueue('approve_formula', {
+          'formula_id': id,
+        });
+        SyncService().updatePendingCount();
+        return {
+          'status': 'success',
+          'offline': true,
+          'message': 'Disimpan lokal, approval akan disinkronkan saat online.'
         };
       }
 
